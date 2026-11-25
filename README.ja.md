@@ -6,6 +6,10 @@ Claude Code の mod です。会話中に出た「ユーザーに決めてほし
 
 ボードは Claude が `mcp__pending-board__add` / `resolve` / `list` で自分で管理します。論点が出たら項目を追加し、片付いたら解決にします（決定待ちにユーザーが答えると、決定内容を記録して解決済みにします）。ユーザーが手でボードを更新する必要はありません。
 
+![Pending タブ: 会話の横に決定待ちが貯まる](docs/images/pending-tab.png)
+
+![Resolved タブ: Claude が項目を解決し、決定内容を記録する](docs/images/resolved-tab.png)
+
 - 帯: `◆ 決定待ち n  ● 情報 n` を常に表示します。押すか `/pending` でダイアログが開きます
 - ダイアログ: Pending / Resolved のタブがあります。各項目には「議論する」（入力欄へ参照を差し込みます）と、自分で閉じたいとき用の「解決にする」があります
 - 「決定待ち n 件を質問で答える」ボタンで、Claude が AskUserQuestion で質問し、答えをもとに resolve します

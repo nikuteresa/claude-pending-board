@@ -6,6 +6,10 @@ A Claude Code mod that keeps the things you need to decide, and the information 
 
 Claude manages the board by itself with `mcp__pending-board__add` / `resolve` / `list`: it adds items as they come up and resolves them when they are settled (when you answer a decision, Claude marks it resolved with the decision recorded). You do not have to keep the board up to date by hand.
 
+![Pending tab: open decisions collected next to the conversation](docs/images/pending-tab.png)
+
+![Resolved tab: Claude resolves an item and records the decision](docs/images/resolved-tab.png)
+
 - Band: always shows `◆ Decisions n  ● Info n`. Press it, or run `/pending`, to open the dialog
 - Dialog: Pending / Resolved tabs. Each item has "Discuss" (inserts a reference into the prompt) and "Mark resolved", for when you want to close an item yourself
 - "Answer n pending decisions" button: Claude asks them with AskUserQuestion and resolves them
