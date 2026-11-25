@@ -37,6 +37,8 @@ claude plugin test .
 tsc -p .
 ```
 
+`tsc -p .` extends `.claude-plugin/types/tsconfig.json`, which is not in git. Claude Code writes `.claude-plugin/types/` (the `claude-code` type declarations and a matching `tsconfig.json`) when it loads the plugin with `--plugin-dir` in an interactive session, so start `claude --plugin-dir .` once before running `tsc`. See [Get type definitions for your version](https://code.claude.com/docs/en/plugins/mods/create).
+
 ## License
 
 [MIT](LICENSE)
