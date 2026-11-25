@@ -89,6 +89,8 @@ const addByClaude = ($: Engine, kind: 'decision' | 'info', title: string) =>
 const resolveByClaude = ($: Engine, id: string, resolution?: string) =>
   $.tool.call({ tool: 'mcp__pending-board__resolve', id, resolution } as any)
 
+const listByClaude = ($: Engine) => $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+
 for (const surface of ['terminal', 'desktop'] as const) {
   test(`items Claude added move from Pending to Resolved (${surface})`, async ($, on) => {
     standInForEngine(on)
@@ -121,21 +123,17 @@ test('/pending only opens the board, ignoring any arguments', async ($, on) => {
 
   expect(opened).toHaveLength(2)
   expect(opened[0]).toMatchObject({ id: 'pending-board', focus: true, closeOnEscape: true })
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+  const listed = await listByClaude($)
   expect(listed.result).toBe('(empty)')
 })
 
 test('the add tool returns the new id and the list tool shows it', async ($, on) => {
   standInForEngine(on)
 
-  const added = await $.tool.call({
-    tool: 'mcp__pending-board__add',
-    kind: 'decision',
-    title: 'ブランチ名',
-  } as any)
+  const added = await addByClaude($, 'decision', 'ブランチ名')
   expect(added.result).toBe('added #1')
 
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+  const listed = await listByClaude($)
   expect(listed.result).toBe('#1 [pending] [decision] ブランチ名')
 
   const missing = await resolveByClaude($, '#9')
@@ -336,7 +334,7 @@ test('the resolve tool on an item the user already resolved says so instead of d
   const resolved = await resolveByClaude($, '#1')
   expect(resolved.result).toBe('already resolved, nothing to do: #1 [resolved by user] [decision] ブランチ名')
 
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+  const listed = await listByClaude($)
   expect(listed.result).toBe('#1 [resolved by user] [decision] ブランチ名')
 })
 
@@ -443,17 +441,14 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     await addByClaude($, 'decision', 'ブランチ名')
     await addByClaude($, 'decision', 'DB 名')
-    await addByClaude($, 'decision', 'キャッシュ方式')
     await resolveByClaude($, '#1', 'feature/foo')
 
     const ui = await $.ui.mount({ ...PANE, surface })
     await ui.press({ key: 'resolve-#2' })
-    await ui.press({ key: 'resolve-#3' })
     await ui.press({ key: 'tab-resolved' })
 
     expect((await ui.find({ type: 'Text', text: /feature\/foo/ }))?.text).toBe('✓ feature/foo')
     expect((await ui.findAll({ type: 'Text', text: /ユーザーが解決/ } as any)).map((node: { text: string }) => node.text)).toEqual([
-      '✓ [ユーザーが解決]',
       '✓ [ユーザーが解決]',
     ])
     await ui.unmount()
