@@ -1,8 +1,5 @@
 import type { Messages } from './en'
 
-const USAGE = '使い方: /pending'
-const ARGUMENT_HINT = '[ask] [add|info <text>] [resolve <id> [決定内容]]'
-
 export const ja: Messages = {
   'kind.decision': '決定',
   'kind.info': '情報',
@@ -20,17 +17,8 @@ export const ja: Messages = {
   'pane.resolve': '解決にする',
   'pane.resolvedByUser': '[ユーザーが解決]',
 
-  'command.description': 'Pending board を開く / 項目を手で追加・解決する',
-  'command.argumentHint': ARGUMENT_HINT,
+  'command.description': 'Pending board を開く',
   'command.opened': 'Pending board を開きました。',
-  'command.usage': `${USAGE} ${ARGUMENT_HINT}`,
-  'command.usageOf': verb => `${USAGE} ${verb} <text>`,
-  'command.added': (id, text) => `${id} を追加しました: ${text}`,
-  'command.resolved': id => `${id} を解決済みにしました。`,
-  'command.alreadyResolved': id => `${id} はすでに解決済みです。`,
-  'command.notFound': id => `pending の ${id} は見つかりません。`,
-  'command.askRequested': '決定待ちを質問ダイアログで聞くよう依頼しました。',
-  'command.noDecisions': '決定待ちはありません。',
 
   'tool.addDescription': [
     'ユーザーの横にある Pending board パネルに項目を追加し、id を返す。積極的に使うこと:',
@@ -47,6 +35,7 @@ export const ja: Messages = {
     '- ユーザーが decision に答えたら、決定内容を resolution に入れて resolve する。',
     '- info は、内容が反映済み・不要になったと判断できたときに resolve する。',
   ].join('\n'),
+  'tool.resolveId': 'add / list が返す項目の id。例: "#3"',
   'tool.resolveResolution': '決まった内容（decision のとき）',
   'tool.listDescription': 'Pending board の全項目を返す。id の確認や重複チェックに使う。',
 

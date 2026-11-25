@@ -77,7 +77,7 @@ export const register: Register = (on, options) => {
       inputSchema: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'string', description: t['tool.resolveId'] },
           resolution: { type: 'string', description: t['tool.resolveResolution'] },
         },
         required: ['id'],
@@ -92,7 +92,6 @@ export const register: Register = (on, options) => {
     await $.command.register({
       name: 'pending',
       description: t['command.description'],
-      argumentHint: t['command.argumentHint'],
     })
 
     return next(e)
@@ -117,7 +116,7 @@ export const register: Register = (on, options) => {
       case 'alreadyResolved':
         return { result: `already resolved, nothing to do: ${formatItem(outcome.item)}` }
       case 'notFound':
-        return { deny: `no pending item ${id}` }
+        return { deny: `no pending item ${id} (ids look like "#3"; call list to check)` }
     }
   })
 
@@ -125,40 +124,11 @@ export const register: Register = (on, options) => {
     return { result: formatList(await read($, items)) }
   })
 
-  // add / resolve の出力は isTextDisplayOnly にしないので Claude にも届く。手動解決の通知はパネルのボタンだけでよい
-  on('command.run', { command: 'pending' }, async ($, e) => {
+  // 引数は見ずにボードを開くだけ。項目の追加と解決は Claude が tool で行い、ユーザーはパネルのボタンで解決できる
+  on('command.run', { command: 'pending' }, async $ => {
     const t = await messagesFor($, localeSetting)
-    const [verb = '', ...rest] = e.args.trim().split(/\s+/)
-    const text = rest.join(' ')
-
-    switch (verb) {
-      case '':
-        await openModal($)
-        return { text: t['command.opened'], isTextDisplayOnly: true }
-      case 'add':
-      case 'info': {
-        if (text === '') return { text: t['command.usageOf'](verb), isTextDisplayOnly: true }
-        const item = await addItem($, { kind: verb === 'add' ? 'decision' : 'info', title: text })
-        return { text: t['command.added'](item.id, text) }
-      }
-      case 'resolve': {
-        const [id = '', ...resolutionWords] = rest
-        const resolution = resolutionWords.join(' ') || undefined
-        const outcome = await resolveItem($, id, { resolution, by: 'user' })
-        const texts = {
-          resolved: t['command.resolved'](id),
-          alreadyResolved: t['command.alreadyResolved'](id),
-          notFound: t['command.notFound'](id),
-        }
-        return { text: texts[outcome.kind] }
-      }
-      case 'ask': {
-        const isAsked = await askPendingDecisions($, t)
-        return { text: isAsked ? t['command.askRequested'] : t['command.noDecisions'], isTextDisplayOnly: true }
-      }
-      default:
-        return { text: t['command.usage'], isTextDisplayOnly: true }
-    }
+    await openModal($)
+    return { text: t['command.opened'], isTextDisplayOnly: true }
   })
 
   // 送信のたびに、手動解決の知らせと、送信文中の #n が指す項目を Claude だけが読む context として添える
@@ -354,14 +324,13 @@ async function discussItem($: Engine, t: Messages, item: Item, surface: RenderSu
 }
 
 // 決定待ちを AskUserQuestion で聞くよう、ユーザー自身の依頼として Claude に送る。選択肢は会話の文脈を持つ Claude が作る
-async function askPendingDecisions($: Engine, t: Messages): Promise<boolean> {
+async function askPendingDecisions($: Engine, t: Messages) {
   const decisions = (await read($, items)).filter(item => item.status === 'pending' && item.kind === 'decision')
-  if (decisions.length === 0) return false
+  if (decisions.length === 0) return
 
   const ids = decisions.map(item => item.id).join(', ')
   await $.ui.close({ id: PANE })
   await $.prompt.submit({ text: t['ask.request'](ids, ASK_BATCH_SIZE), asUser: true })
-  return true
 }
 
 function findMentionedItems(all: readonly Item[], text: string): Item[] {
