@@ -19,6 +19,7 @@ export const ja: Messages = {
 
   'command.description': 'Pending board を開く',
   'command.opened': 'Pending board を開きました。',
+  'command.argsIgnored': '引数は使いません。項目の追加と解決は Claude が行い、パネルからも解決にできます。',
 
   'tool.addDescription': [
     'ユーザーの横にある Pending board パネルに項目を追加し、id を返す。積極的に使うこと:',

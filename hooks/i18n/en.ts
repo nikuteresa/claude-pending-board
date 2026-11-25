@@ -20,6 +20,7 @@ export const en = {
 
   'command.description': 'Open the Pending board',
   'command.opened': 'Opened the Pending board.',
+  'command.argsIgnored': 'Arguments are ignored: Claude adds and resolves items, and you can mark one resolved in the panel.',
 
   'tool.addDescription': [
     'Add an item to the Pending board panel shown beside the user, and return its id. Use it proactively:',

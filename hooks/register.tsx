@@ -124,11 +124,14 @@ export const register: Register = (on, options) => {
     return { result: formatList(await read($, items)) }
   })
 
-  // 引数は見ずにボードを開くだけ。項目の追加と解決は Claude が tool で行うので、以前の /pending add なども使い方エラーにせず開く
-  on('command.run', { command: 'pending' }, async $ => {
+  // ボードを開くだけ。項目の追加と解決は Claude が tool で行うので、以前の /pending add なども使い方エラーにせず開く
+  // 引数が付いていたら、何も追加・解決していないと分かるよう一行添える
+  on('command.run', { command: 'pending' }, async ($, e) => {
     const t = await messagesFor($, localeSetting)
     await openModal($)
-    return { text: t['command.opened'], isTextDisplayOnly: true }
+    const hasArgs = e.args.trim() !== ''
+    const text = hasArgs ? `${t['command.opened']}\n${t['command.argsIgnored']}` : t['command.opened']
+    return { text, isTextDisplayOnly: true }
   })
 
   // 送信のたびに、手動解決の知らせと、送信文中の #n が指す項目を Claude だけが読む context として添える

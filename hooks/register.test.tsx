@@ -114,16 +114,20 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
-test('/pending only opens the board, ignoring any arguments', async ($, on) => {
+test('/pending only opens the board, and says so when given arguments', async ($, on) => {
   const opened: unknown[] = []
   standInForEngine(on, { opened })
 
   await addByClaude($, 'decision', 'ブランチ名')
 
-  const openedReply = { text: 'Pending board を開きました。', isTextDisplayOnly: true }
-  expect(await runPending($, '')).toMatchObject(openedReply)
-  expect(await runPending($, 'add DB 名')).toMatchObject(openedReply)
-  expect(await runPending($, 'resolve #1 feature/foo')).toMatchObject(openedReply)
+  const openedText = 'Pending board を開きました。'
+  const ignoredReply = {
+    text: `${openedText}\n引数は使いません。項目の追加と解決は Claude が行い、パネルからも解決にできます。`,
+    isTextDisplayOnly: true,
+  }
+  expect(await runPending($, '')).toEqual({ text: openedText, isTextDisplayOnly: true })
+  expect(await runPending($, 'add DB 名')).toMatchObject(ignoredReply)
+  expect(await runPending($, 'resolve #1 feature/foo')).toMatchObject(ignoredReply)
 
   expect(opened).toHaveLength(3)
   expect(opened[0]).toMatchObject({ id: 'pending-board', focus: true, closeOnEscape: true })
