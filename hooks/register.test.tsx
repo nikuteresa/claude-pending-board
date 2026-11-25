@@ -118,13 +118,17 @@ test('/pending only opens the board, ignoring any arguments', async ($, on) => {
   const opened: unknown[] = []
   standInForEngine(on, { opened })
 
-  expect(await runPending($, '')).toMatchObject({ text: 'Pending board を開きました。', isTextDisplayOnly: true })
-  expect(await runPending($, 'add ブランチ名')).toMatchObject({ text: 'Pending board を開きました。' })
+  await addByClaude($, 'decision', 'ブランチ名')
 
-  expect(opened).toHaveLength(2)
+  const openedReply = { text: 'Pending board を開きました。', isTextDisplayOnly: true }
+  expect(await runPending($, '')).toMatchObject(openedReply)
+  expect(await runPending($, 'add DB 名')).toMatchObject(openedReply)
+  expect(await runPending($, 'resolve #1 feature/foo')).toMatchObject(openedReply)
+
+  expect(opened).toHaveLength(3)
   expect(opened[0]).toMatchObject({ id: 'pending-board', focus: true, closeOnEscape: true })
   const listed = await listByClaude($)
-  expect(listed.result).toBe('(empty)')
+  expect(listed.result).toBe('#1 [pending] [decision] ブランチ名')
 })
 
 test('the add tool returns the new id and the list tool shows it', async ($, on) => {
@@ -419,7 +423,7 @@ test('the unreported mark is stored, so a resumed session still reports it, and 
   expect((store.get('items:s1') as { isUnreported?: boolean }[])[0]?.isUnreported).toBeUndefined()
 })
 
-test('resolutions by Claude are not reported again as manual ones', async ($, on) => {
+test('resolutions by Claude are not reported as manual ones, and resolving again is a no-op', async ($, on) => {
   standInForEngine(on)
   const submitted: { context?: readonly string[] }[] = []
   on('prompt.submit', (_, e) => {

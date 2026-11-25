@@ -124,7 +124,7 @@ export const register: Register = (on, options) => {
     return { result: formatList(await read($, items)) }
   })
 
-  // 引数は見ずにボードを開くだけ。項目の追加と解決は Claude が tool で行い、ユーザーはパネルのボタンで解決できる
+  // 引数は見ずにボードを開くだけ。項目の追加と解決は Claude が tool で行うので、以前の /pending add なども使い方エラーにせず開く
   on('command.run', { command: 'pending' }, async $ => {
     const t = await messagesFor($, localeSetting)
     await openModal($)
