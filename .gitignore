@@ -1,0 +1,3 @@
+# Claude Code がロード時に書く型定義（tsconfig.json が extends する）
+.claude-plugin/types/
+.DS_Store

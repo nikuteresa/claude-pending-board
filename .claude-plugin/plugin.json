@@ -1,0 +1,16 @@
+{
+  "name": "pending-board",
+  "version": "0.2.0",
+  "description": "A panel that keeps open decisions and important notes from the conversation, in Pending / Resolved tabs",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "locale": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the board and of the text sent to Claude. auto follows the language setting of Claude Code (Japanese → ja, anything else → en).",
+      "required": false,
+      "options": ["auto", "ja", "en"],
+      "default": "auto"
+    }
+  }
+}

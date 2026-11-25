@@ -1,0 +1,5 @@
+{
+  "name": "pending-board",
+  "owner": { "name": "nikuteresa" },
+  "plugins": [{ "name": "pending-board", "source": "./" }]
+}
