@@ -45,3 +45,7 @@ claude plugin validate .
 claude plugin test .
 tsc -p .
 ```
+
+## ライセンス
+
+[MIT](LICENSE)
