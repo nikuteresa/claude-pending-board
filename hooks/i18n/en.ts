@@ -1,8 +1,5 @@
 import type { Item } from '../../types'
 
-const USAGE = 'Usage: /pending'
-const ARGUMENT_HINT = '[ask] [add|info <text>] [resolve <id> [decision]]'
-
 // 文言の key と値の型はこの表から決まる（ja.ts は同じ形で書く）
 export const en = {
   'kind.decision': 'Decision',
@@ -21,17 +18,9 @@ export const en = {
   'pane.resolve': 'Mark resolved',
   'pane.resolvedByUser': '[resolved by user]',
 
-  'command.description': 'Open the Pending board / add or resolve items by hand',
-  'command.argumentHint': ARGUMENT_HINT,
+  'command.description': 'Open the Pending board',
   'command.opened': 'Opened the Pending board.',
-  'command.usage': `${USAGE} ${ARGUMENT_HINT}`,
-  'command.usageOf': (verb: string) => `${USAGE} ${verb} <text>`,
-  'command.added': (id: string, text: string) => `Added ${id}: ${text}`,
-  'command.resolved': (id: string) => `Marked ${id} as resolved.`,
-  'command.alreadyResolved': (id: string) => `${id} is already resolved.`,
-  'command.notFound': (id: string) => `No pending item ${id}.`,
-  'command.askRequested': 'Asked Claude to put the pending decisions to you as questions.',
-  'command.noDecisions': 'No decisions are pending.',
+  'command.argsIgnored': 'Arguments are ignored: Claude adds and resolves items, and you can mark one resolved in the panel.',
 
   'tool.addDescription': [
     'Add an item to the Pending board panel shown beside the user, and return its id. Use it proactively:',
@@ -48,6 +37,7 @@ export const en = {
     '- When the user answers a decision, resolve it with the decision in resolution.',
     '- Resolve an info item once its content has been applied or is no longer needed.',
   ].join('\n'),
+  'tool.resolveId': 'Item id as shown by add/list, e.g. "#3"',
   'tool.resolveResolution': 'What was decided (for a decision)',
   'tool.listDescription': 'Return every Pending board item. Use it to look up ids or check for duplicates.',
 

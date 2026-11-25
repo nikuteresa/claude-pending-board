@@ -3,7 +3,7 @@ export type ItemKind = 'decision' | 'info'
 
 export type ItemStatus = 'pending' | 'resolved'
 
-/** model: Claude が resolve tool で解決 / user: ユーザーがパネルや /pending resolve で解決 */
+/** model: Claude が resolve tool で解決 / user: ユーザーがパネルのボタンで解決 */
 export type ResolvedBy = 'model' | 'user'
 
 export type Item = {
