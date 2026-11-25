@@ -31,7 +31,7 @@ type StandIn = {
   store?: Map<string, unknown>
   sessionId?: string
   /** $.tool.register に渡された引数が溜まる */
-  registeredTools?: { name: string; description: string }[]
+  registeredTools?: { name: string; description: string; inputSchema?: unknown }[]
   /** Claude Code の settings の language。locale: auto はここから決まる */
   language?: string
 }
@@ -82,12 +82,21 @@ const runPending = ($: Engine, args: string) =>
     presentation: { isFullscreen: true, columns: 160 },
   })
 
+// 項目の追加と解決は Claude が tool で行う。テストの下ごしらえもその経路を通す
+const addByClaude = ($: Engine, kind: 'decision' | 'info', title: string) =>
+  $.tool.call({ tool: 'mcp__pending-board__add', kind, title } as any)
+
+const resolveByClaude = ($: Engine, id: string, resolution?: string) =>
+  $.tool.call({ tool: 'mcp__pending-board__resolve', id, resolution } as any)
+
+const listByClaude = ($: Engine) => $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+
 for (const surface of ['terminal', 'desktop'] as const) {
-  test(`items added by command move from Pending to Resolved (${surface})`, async ($, on) => {
+  test(`items Claude added move from Pending to Resolved (${surface})`, async ($, on) => {
     standInForEngine(on)
 
-    await runPending($, 'add DB は MySQL のままにするか')
-    await runPending($, 'info 本番データは触らない')
+    await addByClaude($, 'decision', 'DB は MySQL のままにするか')
+    await addByClaude($, 'info', '本番データは触らない')
 
     const ui = await $.ui.mount({ ...PANE, surface })
 
@@ -105,36 +114,38 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 }
 
-test('resolve via command records the decision for Claude and shows the user marker in the pane', async ($, on) => {
-  standInForEngine(on)
+test('/pending only opens the board, and says so when given arguments', async ($, on) => {
+  const opened: unknown[] = []
+  standInForEngine(on, { opened })
 
-  await runPending($, 'add キャッシュ方式')
-  await runPending($, 'resolve #1 Valkey を使う')
+  await addByClaude($, 'decision', 'ブランチ名')
 
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
-  expect(listed.result).toBe('#1 [resolved by user] [decision] キャッシュ方式 → Valkey を使う')
+  const openedText = 'Pending board を開きました。'
+  const ignoredReply = {
+    text: `${openedText}\n引数は使いません。項目の追加と解決は Claude が行い、パネルからも解決にできます。`,
+    isTextDisplayOnly: true,
+  }
+  expect(await runPending($, '')).toEqual({ text: openedText, isTextDisplayOnly: true })
+  expect(await runPending($, 'add DB 名')).toMatchObject(ignoredReply)
+  expect(await runPending($, 'resolve #1 feature/foo')).toMatchObject(ignoredReply)
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  await ui.press({ key: 'tab-resolved' })
-  expect((await ui.find({ type: 'Text', text: /ユーザーが解決/ }))?.text).toBe('✓ [ユーザーが解決]')
-  await ui.unmount()
+  expect(opened).toHaveLength(3)
+  expect(opened[0]).toMatchObject({ id: 'pending-board', focus: true, closeOnEscape: true })
+  const listed = await listByClaude($)
+  expect(listed.result).toBe('#1 [pending] [decision] ブランチ名')
 })
 
 test('the add tool returns the new id and the list tool shows it', async ($, on) => {
   standInForEngine(on)
 
-  const added = await $.tool.call({
-    tool: 'mcp__pending-board__add',
-    kind: 'decision',
-    title: 'ブランチ名',
-  } as any)
+  const added = await addByClaude($, 'decision', 'ブランチ名')
   expect(added.result).toBe('added #1')
 
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+  const listed = await listByClaude($)
   expect(listed.result).toBe('#1 [pending] [decision] ブランチ名')
 
-  const missing = await $.tool.call({ tool: 'mcp__pending-board__resolve', id: '#9' } as any)
-  expect(missing.deny ?? missing.text).toContain('no pending item #9')
+  const missing = await resolveByClaude($, '#9')
+  expect(missing.deny ?? missing.text).toBe('no pending item #9 (ids look like "#3"; call list to check)')
 })
 
 for (const surface of ['terminal', 'desktop'] as const) {
@@ -142,10 +153,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const opened: unknown[] = []
     standInForEngine(on, { opened })
 
-    await runPending($, 'add ブランチ名')
-    await runPending($, 'info 本番データは触らない')
-    await runPending($, 'add DB 名')
-    await runPending($, 'resolve #3 app_db')
+    await addByClaude($, 'decision', 'ブランチ名')
+    await addByClaude($, 'info', '本番データは触らない')
+    await addByClaude($, 'decision', 'DB 名')
+    await resolveByClaude($, '#3', 'app_db')
 
     const band = await $.ui.mount({ ...BAND, surface } as any)
 
@@ -163,8 +174,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`the band says nothing is pending when every item is resolved (${surface})`, async ($, on) => {
     standInForEngine(on)
 
-    await runPending($, 'add ブランチ名')
-    await runPending($, 'resolve #1 feature/foo')
+    await addByClaude($, 'decision', 'ブランチ名')
+    await resolveByClaude($, '#1', 'feature/foo')
 
     const band = await $.ui.mount({ ...BAND, surface } as any)
 
@@ -182,7 +193,7 @@ test('discuss closes the board and inserts a reference to the item into the prom
     return { isFilled: true }
   })
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'discuss-#1' })
 
@@ -202,7 +213,7 @@ test('discuss falls back to the clipboard when the prompt box cannot take the te
   })
   on('ui.toast', () => ({ value: undefined }))
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'discuss-#1' })
 
@@ -218,8 +229,8 @@ test('a prompt mentioning #n carries that item to the model as context', async (
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
-  await runPending($, 'info 本番データは触らない')
+  await addByClaude($, 'decision', 'ブランチ名')
+  await addByClaude($, 'info', '本番データは触らない')
   await $.prompt.submit({ text: '#1 は feature/foo で', wait: false } as any)
 
   expect(submitted.at(-1)?.context).toEqual(['Pending board の項目: #1 [pending] [decision] ブランチ名'])
@@ -233,8 +244,8 @@ test('a full-width ＃n typed through an IME is recognized too', async ($, on) =
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
-  await runPending($, 'add DB 名')
+  await addByClaude($, 'decision', 'ブランチ名')
+  await addByClaude($, 'decision', 'DB 名')
   await $.prompt.submit({ text: '＃２ は app_db で', wait: false } as any)
 
   expect(submitted.at(-1)?.context).toEqual(['Pending board の項目: #2 [pending] [decision] DB 名'])
@@ -256,7 +267,7 @@ test('adding an item saves it under the session id', async ($, on) => {
   const store = new Map<string, unknown>()
   standInForEngine(on, { store, sessionId: 's9' })
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
 
   expect(store.get('items:s9')).toMatchObject([{ id: '#1', title: 'ブランチ名' }])
   expect(store.get('sessions')).toEqual(['s9'])
@@ -271,9 +282,9 @@ test('the ask button sends the pending decisions to Claude as the person\'s requ
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
-  await runPending($, 'info 本番データは触らない')
-  await runPending($, 'add DB 名')
+  await addByClaude($, 'decision', 'ブランチ名')
+  await addByClaude($, 'info', '本番データは触らない')
+  await addByClaude($, 'decision', 'DB 名')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Button', key: 'ask' } as any)).toBeDefined()
@@ -290,7 +301,7 @@ test('the ask button sends the pending decisions to Claude as the person\'s requ
 test('the ask button is hidden while no decision is pending', async ($, on) => {
   standInForEngine(on)
 
-  await runPending($, 'info 本番データは触らない')
+  await addByClaude($, 'info', '本番データは触らない')
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Button', key: 'ask' } as any)).toBeUndefined()
@@ -305,7 +316,7 @@ test('resolving by hand in the panel is reported to Claude once, on the next mes
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'resolve-#1' })
   await ui.unmount()
@@ -323,15 +334,15 @@ test('resolving by hand in the panel is reported to Claude once, on the next mes
 test('the resolve tool on an item the user already resolved says so instead of denying', async ($, on) => {
   standInForEngine(on)
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'resolve-#1' })
   await ui.unmount()
 
-  const resolved = await $.tool.call({ tool: 'mcp__pending-board__resolve', id: '#1' } as any)
+  const resolved = await resolveByClaude($, '#1')
   expect(resolved.result).toBe('already resolved, nothing to do: #1 [resolved by user] [decision] ブランチ名')
 
-  const listed = await $.tool.call({ tool: 'mcp__pending-board__list' } as any)
+  const listed = await listByClaude($)
   expect(listed.result).toBe('#1 [resolved by user] [decision] ブランチ名')
 })
 
@@ -339,8 +350,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`an English language setting shows the board in English (${surface})`, async ($, on) => {
     standInForEngine(on, { language: 'english' })
 
-    await runPending($, 'add Branch name')
-    await runPending($, 'info Do not touch production data')
+    await addByClaude($, 'decision', 'Branch name')
+    await addByClaude($, 'info', 'Do not touch production data')
 
     const band = await $.ui.mount({ ...BAND, surface } as any)
     expect((await band.find({ type: 'Text', text: /Decisions/ }))?.text).toBe('◆ Decisions 1')
@@ -360,7 +371,10 @@ test('locale: en in the plugin options wins over a Japanese language setting', {
   await startSession($, on)
 
   expect(registered.find(tool => tool.name === 'add')?.description).toStartWith('Add an item to the Pending board')
-  expect(await runPending($, 'add Branch name')).toMatchObject({ text: 'Added #1: Branch name' })
+  expect(registered.find(tool => tool.name === 'resolve')?.inputSchema).toMatchObject({
+    properties: { id: { description: 'Item id as shown by add/list, e.g. "#3"' } },
+  })
+  expect(await runPending($, '')).toMatchObject({ text: 'Opened the Pending board.' })
 })
 
 test('the language setting maps to ja only when it names Japanese', () => {
@@ -382,7 +396,7 @@ test('a slash command line does not use up the manual-resolution notice', async 
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'resolve-#1' })
   await ui.unmount()
@@ -403,7 +417,7 @@ test('the unreported mark is stored, so a resumed session still reports it, and 
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
+  await addByClaude($, 'decision', 'ブランチ名')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'resolve-#1' })
   await ui.unmount()
@@ -413,7 +427,7 @@ test('the unreported mark is stored, so a resumed session still reports it, and 
   expect((store.get('items:s1') as { isUnreported?: boolean }[])[0]?.isUnreported).toBeUndefined()
 })
 
-test('resolutions by Claude or by /pending resolve are not reported again as manual ones', async ($, on) => {
+test('resolutions by Claude are not reported as manual ones, and resolving again is a no-op', async ($, on) => {
   standInForEngine(on)
   const submitted: { context?: readonly string[] }[] = []
   on('prompt.submit', (_, e) => {
@@ -421,12 +435,9 @@ test('resolutions by Claude or by /pending resolve are not reported again as man
     return { text: e.text }
   })
 
-  await runPending($, 'add ブランチ名')
-  await runPending($, 'add DB 名')
-  const byTool = await $.tool.call({ tool: 'mcp__pending-board__resolve', id: '#1', resolution: 'feature/foo' } as any)
-  expect(byTool.result).toBe('resolved #1')
-  expect(await runPending($, 'resolve #2 app_db')).toMatchObject({ text: '#2 を解決済みにしました。' })
-  expect(await runPending($, 'resolve #2')).toMatchObject({ text: '#2 はすでに解決済みです。' })
+  await addByClaude($, 'decision', 'ブランチ名')
+  expect((await resolveByClaude($, '#1', 'feature/foo')).result).toBe('resolved #1')
+  expect((await resolveByClaude($, '#1')).result).toBe('already resolved, nothing to do: #1 [resolved] [decision] ブランチ名 → feature/foo')
 
   await $.prompt.submit({ text: '次へ', wait: false } as any)
   expect(submitted.at(-1)?.context ?? []).toEqual([])
@@ -436,19 +447,16 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`the Resolved tab shows only a marker for items the user resolved (${surface})`, async ($, on) => {
     standInForEngine(on)
 
-    await runPending($, 'add ブランチ名')
-    await runPending($, 'add DB 名')
-    await runPending($, 'add キャッシュ方式')
-    await $.tool.call({ tool: 'mcp__pending-board__resolve', id: '#1', resolution: 'feature/foo' } as any)
-    await runPending($, 'resolve #2 app_db')
+    await addByClaude($, 'decision', 'ブランチ名')
+    await addByClaude($, 'decision', 'DB 名')
+    await resolveByClaude($, '#1', 'feature/foo')
 
     const ui = await $.ui.mount({ ...PANE, surface })
-    await ui.press({ key: 'resolve-#3' })
+    await ui.press({ key: 'resolve-#2' })
     await ui.press({ key: 'tab-resolved' })
 
     expect((await ui.find({ type: 'Text', text: /feature\/foo/ }))?.text).toBe('✓ feature/foo')
     expect((await ui.findAll({ type: 'Text', text: /ユーザーが解決/ } as any)).map((node: { text: string }) => node.text)).toEqual([
-      '✓ [ユーザーが解決]',
       '✓ [ユーザーが解決]',
     ])
     await ui.unmount()
