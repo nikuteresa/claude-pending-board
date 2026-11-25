@@ -1,6 +1,6 @@
 {
   "name": "pending-board",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "A panel that keeps open decisions and important notes from the conversation, in Pending / Resolved tabs",
   "license": "MIT",
   "types": "./types/index.d.ts",
